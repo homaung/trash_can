@@ -1,0 +1,91 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2
+
+
+class Quant_analysis:
+    #원소들이 많죠 볼게 그만큼 많다는 거에요
+    bit_depth = []
+    Qmax = []
+    Qmid = []
+    Xmax = []
+    qXmax = []
+    variant_list = [bit_depth, Qmax, Qmid, Xmax, qXmax]
+    coffi = ["bit_depths", "Qmax", "Qmid", "Xmax", "qXmax"]
+    variant = []
+
+    def __init__(self, level=1, QB_size = 4):
+        self.level = level
+        self.num_tile = 4 ** self.level
+        self.per_side = 2 ** self.level
+        self.QB_size = QB_size
+        self.rows = 2048
+        self.cols = 2048
+        self.row_q = self.rows / (self.QB_size * self.per_side)
+        self.col_q = self.cols / (self.QB_size * self.per_side)
+        self.read_Qtable()
+
+    def read_Qtable(self):
+        array_shape = (self.row_q, self.col_q)
+
+        # 코덱에서 읽어본 변수를 읽어서 쓴 텍스트 파일을 읽어서 가져오는 부분입니다.
+        for i in range(self.num_tile):
+            for j in range(5):
+                path = "D:/Hologram_ETRI/분석용 코드/Hologram_Analysis/QT/" + str(i) \
+                       + "tile_" + self.coffi[j] + ".txt"
+
+                temp = function.read_and_transform_to_array(path, array_shape)
+                Quant_analysis.variant_list[j].append(temp)
+
+    @staticmethod
+    def store_image(self):
+        # 이제 읽은 배열들을 이미지화 하여 png파일로 저장합니다.
+        for j in range(5):
+            Quant_analysis.display_energy_map(Quant_analysis.variant_list[j],
+                                              self.coffi[j], path="D:/Hologram_ETRI/분석용 코드/Hologram_Analysis/out/"
+                                                                  + self.coffi[j] + ".png")
+
+    @staticmethod
+    def display_energy_map(self, energy_map, title="Energy Map", path=""):
+        # 에너지 맵을 0과 1 사이로 정규화
+        normalized_map = cv2.normalize(energy_map, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+
+        # 이미지 표시
+        plt.imshow(normalized_map, cmap='gray')
+        plt.title(title)
+        plt.colorbar()
+        # 이미지 파일로 저장
+        plt.savefig(path)
+
+    def combine_tiles(self, tiles):
+
+        # 전체 배열 초기화
+        combined_array = np.zeros((self.row_q, self.col_q))
+
+        row_tile = self.row_q / self.per_side
+        col_tile = self.col_q / self.per_side
+
+        # 각 타일을 정사각형 그리드에 배치
+        for i in range(self.per_side):
+            for j in range(self.per_side):
+                start_row = i * row_tile
+                end_row = start_row + row_tile
+                start_col = j * col_tile
+                end_col = start_col + col_tile
+
+                tile_index = i * self.per_side + j
+                combined_array[start_row:end_row, start_col:end_col] = tiles[tile_index]
+
+        Quant_analysis.variant.append(combined_array)
+
+
+# 테이블을 만들었이 양자화 블록 별로 어떻게 형성되 있는지 알기 위해
+# 제가 만든 텍스트 파일을 읽어 넘파이로 바꾸는 코드를 원했어요.
+def read_and_transform_to_array(file_path, array_shape):
+    with open(file_path, 'r') as file:
+        data = [float(line.strip()) for line in file]
+
+    if len(data) != np.prod(array_shape):
+        raise ValueError("원소의 개수가 배열 형태와 일치하지 않습니다.")
+
+    return np.array(data).reshape(array_shape)
